@@ -1,46 +1,6 @@
 
 from langchain_openai import ChatOpenAI
 import os
-import json
-from pathlib import Path
-
-
-def _load_openai_settings() -> tuple[str, str | None]:
-    api_key = os.getenv("OPENAI_API_KEY")
-    api_base = os.getenv("OPENAI_API_BASE")
-    config_path = Path(
-        os.getenv(
-            "RAG_CONFIG_PATH",
-            str(Path(__file__).resolve().parents[1] / "config.json"),
-        )
-    )
-
-    if (not api_key or not api_base) and config_path.is_file():
-        try:
-            with config_path.open(encoding="utf-8") as config_file:
-                config = json.load(config_file)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(
-                f"Invalid JSON in RAG configuration file: {config_path}"
-            ) from exc
-
-        if not isinstance(config, dict):
-            raise RuntimeError(
-                f"RAG configuration file must contain a JSON object: {config_path}"
-            )
-
-        api_key = api_key or config.get("OPENAI_API_KEY")
-        api_base = api_base or config.get("OPENAI_API_BASE")
-
-    if not isinstance(api_key, str) or not api_key.strip():
-        raise RuntimeError(
-            "OPENAI_API_KEY is missing. Set it in the server environment "
-            f"or provide it in {config_path}."
-        )
-    if api_base is not None and not isinstance(api_base, str):
-        raise RuntimeError("OPENAI_API_BASE must be a string when provided.")
-
-    return api_key, api_base
 
 # Retrieve the top-k relevant chunks from the vector store
 def retrieve(query: str, k: int = 2,vectorstore=None) -> list[str]:
@@ -93,16 +53,14 @@ def rag(
     max_tokens: int = 512,
     vectorstore=None
 ):
-    api_key, api_base = _load_openai_settings()
-
     # Create the generator model
     model = ChatOpenAI(
         model=model_name,
         temperature=temperature,
         top_p=top_p,
         max_tokens=max_tokens,
-        openai_api_key=api_key,
-        openai_api_base=api_base
+        openai_api_key=os.getenv('OPENAI_API_KEY'),
+        openai_api_base=os.getenv('OPENAI_API_BASE')
     )
 
     # Retrieve relevant chunks
